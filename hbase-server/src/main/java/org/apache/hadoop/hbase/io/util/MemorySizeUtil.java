@@ -23,6 +23,7 @@ import java.lang.management.MemoryUsage;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.regionserver.skiplist.hbase.CCSMapMemStore;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,7 +167,8 @@ public class MemorySizeUtil {
       // this entire size split into Chunks and pooling them in MemstoreLABPoool. We dont want to
       // create so many on demand off heap chunks. In fact when this off heap size is configured, we
       // will go with 100% of this size as the pool size
-      if (MemStoreLAB.isEnabled(conf)) {
+      // For simplify config, CCSMap use same config with MemStoreLAB
+      if (MemStoreLAB.isEnabled(conf) || CCSMapMemStore.isEnabled(conf)) {
         // We are in offheap Memstore use
         long globalMemStoreLimit = (long) (offheapMSGlobal * 1024 * 1024); // Size in bytes
         return new Pair<>(globalMemStoreLimit, MemoryType.NON_HEAP);

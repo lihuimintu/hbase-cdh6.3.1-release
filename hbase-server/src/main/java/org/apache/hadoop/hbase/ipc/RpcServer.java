@@ -466,10 +466,15 @@ public abstract class RpcServer implements RpcServerInterface,
       // increment the number of requests that were exceptions.
       metrics.exception(e);
 
-      if (e instanceof LinkageError) throw new DoNotRetryIOException(e);
-      if (e instanceof IOException) throw (IOException)e;
-      LOG.error("Unexpected throwable object ", e);
-      throw new IOException(e.getMessage(), e);
+      if (e instanceof LinkageError) {
+        throw new DoNotRetryIOException(e);
+      }
+      if (e instanceof IOException) {
+        throw (IOException) e;
+      }
+      String errorMsg = (e == null ? "nullException" : e.getMessage());
+      LOG.error("Unexpected throwable object {}", errorMsg, e);
+      throw new IOException(errorMsg, e);
     }
   }
 

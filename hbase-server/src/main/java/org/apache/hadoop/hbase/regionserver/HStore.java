@@ -88,6 +88,7 @@ import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequestImpl;
 import org.apache.hadoop.hbase.regionserver.compactions.DefaultCompactor;
 import org.apache.hadoop.hbase.regionserver.compactions.OffPeakHours;
 import org.apache.hadoop.hbase.regionserver.querymatcher.ScanQueryMatcher;
+import org.apache.hadoop.hbase.regionserver.skiplist.hbase.CCSMapMemStore;
 import org.apache.hadoop.hbase.regionserver.throttle.ThroughputController;
 import org.apache.hadoop.hbase.regionserver.wal.WALUtil;
 import org.apache.hadoop.hbase.security.EncryptionUtil;
@@ -130,6 +131,9 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.WALProtos.CompactionDes
 @InterfaceAudience.Private
 public class HStore implements Store, HeapSize, StoreConfigInformation, PropagatingConfigurationObserver {
   public static final String MEMSTORE_CLASS_NAME = "hbase.regionserver.memstore.class";
+  public static final String COMPACTING_MEMSTORE_CLASS_NAME =
+      "hbase.regionserver.compacting.memstore.class";
+  public static final String DEFAULT_MEMSTORE_CLASS_NAME = CCSMapMemStore.class.getName();
   public static final String COMPACTCHECKER_INTERVAL_MULTIPLIER_KEY =
       "hbase.server.compactchecker.interval.multiplier";
   public static final String BLOCKING_STOREFILES_KEY = "hbase.hstore.blockingStoreFiles";
@@ -342,30 +346,38 @@ public class HStore implements Store, HeapSize, StoreConfigInformation, Propagat
   private MemStore getMemstore() {
     MemStore ms = null;
     // Check if in-memory-compaction configured. Note MemoryCompactionPolicy is an enum!
-    MemoryCompactionPolicy inMemoryCompaction = null;
-    if (this.getTableName().isSystemTable()) {
-      inMemoryCompaction = MemoryCompactionPolicy.valueOf(
-          conf.get("hbase.systemtables.compacting.memstore.type", "NONE"));
-    } else {
-      inMemoryCompaction = family.getInMemoryCompaction();
-    }
+    MemoryCompactionPolicy inMemoryCompaction = family.getInMemoryCompaction();
+
     if (inMemoryCompaction == null) {
-      inMemoryCompaction =
-          MemoryCompactionPolicy.valueOf(conf.get(CompactingMemStore.COMPACTING_MEMSTORE_TYPE_KEY,
+      inMemoryCompaction = MemoryCompactionPolicy.valueOf(
+          conf.get(CompactingMemStore.COMPACTING_MEMSTORE_TYPE_KEY,
               CompactingMemStore.COMPACTING_MEMSTORE_TYPE_DEFAULT));
     }
     switch (inMemoryCompaction) {
       case NONE:
-        ms = ReflectionUtils.newInstance(DefaultMemStore.class,
-            new Object[] { conf, this.comparator,
-                this.getHRegion().getRegionServicesForStores()});
-        break;
+        String className = conf.get(MEMSTORE_CLASS_NAME, DEFAULT_MEMSTORE_CLASS_NAME);
+        ms = ReflectionUtils.instantiateWithCustomCtor(className,
+                new Class[] { Configuration.class, CellComparator.class },
+                new Object[] { conf, this.comparator });
+
+             break;
       default:
-        Class<? extends CompactingMemStore> clz = conf.getClass(MEMSTORE_CLASS_NAME,
-            CompactingMemStore.class, CompactingMemStore.class);
-        ms = ReflectionUtils.newInstance(clz, new Object[]{conf, this.comparator, this,
-            this.getHRegion().getRegionServicesForStores(), inMemoryCompaction});
+        if (this.getTableName().isSystemTable() && MemoryCompactionPolicy
+            .valueOf(conf.get("hbase.systemtables.compacting.memstore.type", "NONE"))
+            == MemoryCompactionPolicy.NONE) {
+          ms = ReflectionUtils.instantiateWithCustomCtor(DefaultMemStore.class.getName(),
+              new Class[] { Configuration.class, CellComparator.class },
+              new Object[] { conf, this.comparator });
+        } else {
+          Class<? extends CompactingMemStore> clz =
+              conf.getClass(COMPACTING_MEMSTORE_CLASS_NAME, CompactingMemStore.class,
+                  CompactingMemStore.class);
+          ms = ReflectionUtils.newInstance(clz, new Object[] { conf, this.comparator, this,
+              this.getHRegion().getRegionServicesForStores(), inMemoryCompaction });
+        }
     }
+    LOG.debug("{}/{} use memStore class = {}", this.getRegionInfo().getRegionNameAsString(),
+      family.getNameAsString(), ms.getClass().getName());
     return ms;
   }
 

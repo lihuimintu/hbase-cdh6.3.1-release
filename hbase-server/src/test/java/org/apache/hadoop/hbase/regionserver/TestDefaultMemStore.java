@@ -1118,5 +1118,6 @@ public class TestDefaultMemStore {
     for (int i = 0 ; i < 50 ; i++)
       doScan(ms, i);
   }
+
 }
 

@@ -90,8 +90,8 @@ public class MutableSegment extends Segment {
             // area. Only the Cell object as such going way. We need to consider cellLen to be
             // decreased there as 0 only. Just keeping it as existing code now. We need to know the
             // removed cell is from MSLAB or not. Will do once HBASE-16438 is in
-            int cellLen = getCellLength(cur);
-            long heapSize = heapSizeChange(cur, true);
+            int cellLen = getDataSizeByCell(cur);
+            long heapSize = getHeapSizeByCell(cur);
             long offHeapSize = offHeapSizeChange(cur, true);
             incMemStoreSize(-cellLen, -heapSize, -offHeapSize, -1);
             if (memStoreSizing != null) {

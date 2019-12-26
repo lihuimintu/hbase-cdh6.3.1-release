@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hbase.regionserver;
 
+import static org.apache.hadoop.hbase.regionserver.HStore.MEMSTORE_CLASS_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Random;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.ByteBufferKeyValue;
+import org.apache.hadoop.hbase.CellComparatorImpl;
 import org.apache.hadoop.hbase.HBaseClassTestRule;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValueUtil;
@@ -60,6 +62,7 @@ public class TestMemStoreChunkPool {
   public static void setUpBeforeClass() throws Exception {
     conf.setBoolean(MemStoreLAB.USEMSLAB_KEY, true);
     conf.setFloat(MemStoreLAB.CHUNK_POOL_MAXSIZE_KEY, 0.2f);
+    conf.set(MEMSTORE_CLASS_NAME, DefaultMemStore.class.getName());
     chunkPoolDisabledBeforeTest = ChunkCreator.chunkPoolDisabled;
     ChunkCreator.chunkPoolDisabled = false;
     long globalMemStoreLimit = (long) (ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
@@ -126,7 +129,7 @@ public class TestMemStoreChunkPool {
     byte[] qf5 = Bytes.toBytes("testqualifier5");
     byte[] val = Bytes.toBytes("testval");
 
-    DefaultMemStore memstore = new DefaultMemStore();
+    DefaultMemStore memstore = new DefaultMemStore(conf, CellComparatorImpl.COMPARATOR);
 
     // Setting up memstore
     memstore.add(new KeyValue(row, fam, qf1, val), null);
@@ -167,7 +170,7 @@ public class TestMemStoreChunkPool {
     byte[] qf7 = Bytes.toBytes("testqualifier7");
     byte[] val = Bytes.toBytes("testval");
 
-    DefaultMemStore memstore = new DefaultMemStore();
+    DefaultMemStore memstore = new DefaultMemStore(conf, CellComparatorImpl.COMPARATOR);
 
     // Setting up memstore
     memstore.add(new KeyValue(row, fam, qf1, val), null);

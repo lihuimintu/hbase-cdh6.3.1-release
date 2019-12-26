@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hbase.io.hfile;
 
+import static org.apache.hadoop.hbase.regionserver.HStore.MEMSTORE_CLASS_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -39,6 +40,7 @@ import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.regionserver.ChunkCreator;
+import org.apache.hadoop.hbase.regionserver.DefaultMemStore;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.HStore;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
@@ -87,6 +89,7 @@ public class TestScannerFromBucketCache {
       conf.setFloat("hfile.block.cache.size", 0.2f);
       conf.setFloat("hbase.regionserver.global.memstore.size", 0.1f);
     }
+    conf.set(MEMSTORE_CLASS_NAME, DefaultMemStore.class.getName());
     tableName = TableName.valueOf(name.getMethodName());
     CacheConfig.instantiateBlockCache(conf);
   }

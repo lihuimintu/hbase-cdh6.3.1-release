@@ -57,7 +57,7 @@ public class CellSet implements NavigableSet<Cell>  {
     this.numUniqueKeys = UNKNOWN_NUM_UNIQUES;
   }
 
-  CellSet(final NavigableMap<Cell, Cell> m, int numUniqueKeys) {
+  public CellSet(final NavigableMap<Cell, Cell> m, int numUniqueKeys) {
     this.delegatee = m;
     this.numUniqueKeys = numUniqueKeys;
   }

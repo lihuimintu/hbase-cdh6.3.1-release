@@ -708,7 +708,8 @@ class MemStoreFlusher implements FlushRequester {
             server.cacheFlusher.setFlushType(flushType);
             if (!blocked) {
               startTime = EnvironmentEdgeManager.currentTime();
-              if (!server.getRegionServerAccounting().isOffheap()) {
+              if (!server.getRegionServerAccounting().isOffheap() && !server
+                  .getRegionServerAccounting().isCCSMapEnable()) {
                 logMsg("global memstore heapsize",
                     server.getRegionServerAccounting().getGlobalMemStoreHeapSize(),
                     server.getRegionServerAccounting().getGlobalMemStoreLimit());

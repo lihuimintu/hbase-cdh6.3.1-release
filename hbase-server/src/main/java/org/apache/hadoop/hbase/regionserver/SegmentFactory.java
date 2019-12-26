@@ -20,6 +20,10 @@ package org.apache.hadoop.hbase.regionserver;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.CellComparator;
+import org.apache.hadoop.hbase.regionserver.skiplist.hbase.CellCCSMap;
+import org.apache.hadoop.hbase.regionserver.skiplist.hbase.ImmutableSegmentOnCCSMap;
+import org.apache.hadoop.hbase.regionserver.skiplist.hbase.MemstoreLABProxyForCCSMap;
+import org.apache.hadoop.hbase.regionserver.skiplist.hbase.MutableSegmentOnCCSMap;
 import org.apache.yetus.audience.InterfaceAudience;
 
 import java.io.IOException;
@@ -158,5 +162,19 @@ public final class SegmentFactory {
       mslabs.add(segment.getMemStoreLAB());
     }
     return new ImmutableMemStoreLAB(mslabs);
+  }
+
+  // create mutable segment
+  public MutableSegment createMutableSegmentCCSMap(final Configuration conf,
+      CellComparator comparator, boolean isMeta) {
+    CellCCSMap cellCCSMap = CellCCSMap.buildCellCCSMap(conf, comparator, isMeta);
+    CellSet set = new CellSet(cellCCSMap);
+    MemStoreLAB memStoreLAB = new MemstoreLABProxyForCCSMap(cellCCSMap);
+    return new MutableSegmentOnCCSMap(set, comparator, memStoreLAB);
+  }
+
+  // create immutable segment from mutable segment
+  public ImmutableSegment createImmutableSegmentCCSMap(MutableSegment segment) {
+    return new ImmutableSegmentOnCCSMap(segment);
   }
 }

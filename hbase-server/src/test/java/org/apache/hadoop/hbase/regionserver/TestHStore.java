@@ -1472,7 +1472,8 @@ public class TestHStore {
   public void testRunDoubleMemStoreCompactors() throws IOException, InterruptedException {
     int flushSize = 500;
     Configuration conf = HBaseConfiguration.create();
-    conf.set(HStore.MEMSTORE_CLASS_NAME, MyCompactingMemStoreWithCustomCompactor.class.getName());
+    conf.set(HStore.COMPACTING_MEMSTORE_CLASS_NAME,
+      MyCompactingMemStoreWithCustomCompactor.class.getName());
     conf.setDouble(CompactingMemStore.IN_MEMORY_FLUSH_THRESHOLD_FACTOR_KEY, 0.25);
     MyCompactingMemStoreWithCustomCompactor.RUNNER_COUNT.set(0);
     conf.set(HConstants.HREGION_MEMSTORE_FLUSH_SIZE, String.valueOf(flushSize));

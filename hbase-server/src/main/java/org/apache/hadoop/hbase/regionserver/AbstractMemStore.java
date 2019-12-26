@@ -27,6 +27,7 @@ import java.util.SortedSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellComparator;
+import org.apache.hadoop.hbase.CellComparatorImpl;
 import org.apache.hadoop.hbase.ExtendedCell;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
@@ -43,8 +44,8 @@ public abstract class AbstractMemStore implements MemStore {
 
   private static final long NO_SNAPSHOT_ID = -1;
 
-  private final Configuration conf;
-  private final CellComparator comparator;
+  protected final Configuration conf;
+  protected final CellComparator comparator;
 
   // active segment absorbs write operations
   protected volatile MutableSegment active;
@@ -52,13 +53,15 @@ public abstract class AbstractMemStore implements MemStore {
   protected volatile ImmutableSegment snapshot;
   protected volatile long snapshotId;
   // Used to track when to flush
-  private volatile long timeOfOldestEdit;
+  protected volatile long timeOfOldestEdit;
+  protected final boolean isMeta;
 
   protected RegionServicesForStores regionServices;
 
   public final static long FIXED_OVERHEAD = (long) ClassSize.OBJECT
           + (5 * ClassSize.REFERENCE)
-          + (2 * Bytes.SIZEOF_LONG); // snapshotId, timeOfOldestEdit
+          + (2 * Bytes.SIZEOF_LONG) // snapshotId, timeOfOldestEdit
+          + (Bytes.SIZEOF_BOOLEAN);
 
   public final static long DEEP_OVERHEAD = FIXED_OVERHEAD;
 
@@ -79,8 +82,13 @@ public abstract class AbstractMemStore implements MemStore {
     this.conf = conf;
     this.comparator = c;
     this.regionServices = regionServices;
+    if (c instanceof CellComparatorImpl.MetaCellComparator) {
+      isMeta = true;
+    } else {
+      isMeta = false;
+    }
     resetActive();
-    this.snapshot = SegmentFactory.instance().createImmutableSegment(c);
+    initSnapshot(c);
     this.snapshotId = NO_SNAPSHOT_ID;
   }
 
@@ -97,6 +105,10 @@ public abstract class AbstractMemStore implements MemStore {
         memstoreAccounting.getCellsCount());
     }
     this.timeOfOldestEdit = Long.MAX_VALUE;
+  }
+
+  protected void initSnapshot(final CellComparator c) {
+    this.snapshot = SegmentFactory.instance().createImmutableSegment(c);
   }
 
   /**
@@ -221,7 +233,7 @@ public abstract class AbstractMemStore implements MemStore {
    * @param readpoint readpoint below which we can safely remove duplicate KVs
    * @param memstoreSize
    */
-  private void upsert(Cell cell, long readpoint, MemStoreSizing memstoreSizing) {
+  protected void upsert(Cell cell, long readpoint, MemStoreSizing memstoreSizing) {
     // Add the Cell to the MemStore
     // Use the internalAdd method here since we (a) already have a lock
     // and (b) cannot safely use the MSLAB here without potentially
@@ -307,7 +319,7 @@ public abstract class AbstractMemStore implements MemStore {
     checkActiveSize();
   }
 
-  private void setOldestEditTimeToNow() {
+  protected void setOldestEditTimeToNow() {
     if (timeOfOldestEdit == Long.MAX_VALUE) {
       timeOfOldestEdit = EnvironmentEdgeManager.currentTime();
     }

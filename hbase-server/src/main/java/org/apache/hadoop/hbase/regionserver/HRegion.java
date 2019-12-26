@@ -1631,6 +1631,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
               writestate.writesEnabled = true;
             }
             // Have to throw to upper layers.  I can't abort server from here.
+            LOG.debug("Failed flush {} ", this, ioe);
             throw ioe;
           }
         }

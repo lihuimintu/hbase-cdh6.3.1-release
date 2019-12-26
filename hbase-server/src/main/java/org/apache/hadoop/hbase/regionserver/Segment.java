@@ -179,8 +179,16 @@ public abstract class Segment implements MemStoreSizing {
    * Get cell length after serialized in {@link KeyValue}
    */
   @VisibleForTesting
-  static int getCellLength(Cell cell) {
+  protected static int getCellLength(Cell cell) {
     return KeyValueUtil.length(cell);
+  }
+
+  protected int getDataSizeByCell(Cell cell) {
+    return getCellLength(cell);
+  }
+
+  protected long getHeapSizeByCell(Cell cell) {
+    return heapSizeChange(cell, true);
   }
 
   public boolean shouldSeek(TimeRange tr, long oldestUnexpiredTS) {

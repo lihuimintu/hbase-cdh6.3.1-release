@@ -22,6 +22,7 @@ import java.lang.management.MemoryType;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.regionserver.skiplist.hbase.CCSMapMemStore;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.apache.hadoop.hbase.io.util.MemorySizeUtil;
 import org.apache.hadoop.hbase.util.Pair;
@@ -44,6 +45,7 @@ public class RegionServerAccounting {
   private final float globalMemStoreLimitLowMarkPercent;
   private long globalMemStoreLimitLowMark;
   private final MemoryType memType;
+  private final boolean isCCSMapEnable;
   private long globalOnHeapMemstoreLimit;
   private long globalOnHeapMemstoreLimitLowMark;
 
@@ -51,6 +53,7 @@ public class RegionServerAccounting {
     Pair<Long, MemoryType> globalMemstoreSizePair = MemorySizeUtil.getGlobalMemStoreSize(conf);
     this.globalMemStoreLimit = globalMemstoreSizePair.getFirst();
     this.memType = globalMemstoreSizePair.getSecond();
+    isCCSMapEnable = CCSMapMemStore.isEnabled(conf);
     this.globalMemStoreLimitLowMarkPercent =
         MemorySizeUtil.getGlobalMemStoreHeapLowerMark(conf, this.memType == MemoryType.HEAP);
     // When off heap memstore in use we configure the global off heap space for memstore as bytes
@@ -67,6 +70,10 @@ public class RegionServerAccounting {
     this.globalOnHeapMemstoreLimit = MemorySizeUtil.getOnheapGlobalMemStoreSize(conf);
     this.globalOnHeapMemstoreLimitLowMark =
         (long) (this.globalOnHeapMemstoreLimit * this.globalMemStoreLimitLowMarkPercent);
+  }
+
+  public boolean isCCSMapEnable() {
+    return isCCSMapEnable;
   }
 
   long getGlobalMemStoreLimit() {
@@ -146,7 +153,7 @@ public class RegionServerAccounting {
   public FlushType isAboveHighWaterMark() {
     // for onheap memstore we check if the global memstore size and the
     // global heap overhead is greater than the global memstore limit
-    if (memType == MemoryType.HEAP) {
+    if (memType == MemoryType.HEAP && !isCCSMapEnable) {
       if (getGlobalMemStoreHeapSize() >= globalMemStoreLimit) {
         return FlushType.ABOVE_ONHEAP_HIGHER_MARK;
       }
@@ -177,7 +184,7 @@ public class RegionServerAccounting {
   public FlushType isAboveLowWaterMark() {
     // for onheap memstore we check if the global memstore size and the
     // global heap overhead is greater than the global memstore lower mark limit
-    if (memType == MemoryType.HEAP) {
+    if (memType == MemoryType.HEAP && !isCCSMapEnable) {
       if (getGlobalMemStoreHeapSize() >= globalMemStoreLimitLowMark) {
         return FlushType.ABOVE_ONHEAP_LOWER_MARK;
       }

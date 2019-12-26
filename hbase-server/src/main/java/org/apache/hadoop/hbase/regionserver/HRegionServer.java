@@ -129,6 +129,8 @@ import org.apache.hadoop.hbase.regionserver.handler.CloseMetaHandler;
 import org.apache.hadoop.hbase.regionserver.handler.CloseRegionHandler;
 import org.apache.hadoop.hbase.regionserver.handler.RSProcedureHandler;
 import org.apache.hadoop.hbase.regionserver.handler.RegionReplicaFlushHandler;
+import org.apache.hadoop.hbase.regionserver.skiplist.core.CCSMapChunkPool;
+import org.apache.hadoop.hbase.regionserver.skiplist.hbase.CCSMapMemStore;
 import org.apache.hadoop.hbase.regionserver.throttle.FlushThroughputControllerFactory;
 import org.apache.hadoop.hbase.regionserver.throttle.ThroughputController;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationLoad;
@@ -1574,6 +1576,18 @@ public class HRegionServer extends HasThread implements
     }
   }
 
+  private void initializeCCSMapChunkPool() {
+    Pair<Long, MemoryType> pair = MemorySizeUtil.getGlobalMemStoreSize(conf);
+    boolean offheap = this.regionServerAccounting.isOffheap();
+    long globalMemStoreSize = pair.getFirst();
+
+    CCSMapChunkPool.initialize(conf, globalMemStoreSize,
+        conf.getInt(CCSMapMemStore.CHUNK_SIZE_KEY, CCSMapMemStore.CHUNK_SIZE_DEFAULT),
+        conf.getInt(CCSMapMemStore.INITIAL_CHUNK_COUNT_KEY, Integer.MAX_VALUE), offheap);
+
+    // not need Register with Heap Memory manager
+  }
+
   protected void initializeMemStoreChunkCreator() {
     if (MemStoreLAB.isEnabled(conf)) {
       // MSLAB is enabled. So initialize MemStoreChunkPool
@@ -1982,8 +1996,14 @@ public class HRegionServer extends HasThread implements
 
     // Memstore services.
     startHeapMemoryManager();
+
     // Call it after starting HeapMemoryManager.
-    initializeMemStoreChunkCreator();
+    // for simplify the configuration, if we use CCSMap, the chunkPool will auto be closed.
+    if (CCSMapMemStore.isEnabled(conf)) {
+      initializeCCSMapChunkPool();
+    } else if (MemStoreLAB.isEnabled(conf)) {
+      initializeMemStoreChunkCreator();
+    }
   }
 
   private void initializeThreads() throws IOException {
